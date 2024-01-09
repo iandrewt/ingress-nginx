@@ -588,6 +588,11 @@ type Configuration struct {
 	// Default: true
 	OpentelemetryTrustIncomingSpan bool `json:"opentelemetry-trust-incoming-span"`
 
+	// OpenTelemetryPropagationType specifies the propagation type for traces.
+	// Can be either w3c or b3
+	// Default: w3c
+	OpentelemetryPropagationType string `json:"opentelemetry-propagation-type"`
+
 	// OtlpCollectorHost specifies the host to use when uploading traces
 	OtlpCollectorHost string `json:"otlp-collector-host"`
 
@@ -889,6 +894,7 @@ func NewDefault() Configuration {
 		BindAddressIpv6:                        defBindAddress,
 		OpentelemetryTrustIncomingSpan:         true,
 		OpentelemetryConfig:                    "/etc/ingress-controller/telemetry/opentelemetry.toml",
+		OpentelemetryPropagationType:           "w3c",
 		OtlpCollectorPort:                      "4317",
 		OtelServiceName:                        "nginx",
 		OtelSampler:                            "AlwaysOn",

@@ -1134,18 +1134,52 @@ func TestEscapeLiteralDollar(t *testing.T) {
 }
 
 func TestOpentelemetryPropagateContext(t *testing.T) {
-	tests := map[*ingress.Location]string{
-		{BackendProtocol: httpProtocol}:     "opentelemetry_propagate;",
-		{BackendProtocol: httpsProtocol}:    "opentelemetry_propagate;",
-		{BackendProtocol: autoHTTPProtocol}: "opentelemetry_propagate;",
-		{BackendProtocol: grpcProtocol}:     "opentelemetry_propagate;",
-		{BackendProtocol: grpcsProtocol}:    "opentelemetry_propagate;",
-		{BackendProtocol: fcgiProtocol}:     "opentelemetry_propagate;",
-		nil:                                 "",
+	opentelemetryW3C := opentelemetry.Config{PropagationType: "w3c"}
+	opentelemetryB3 := opentelemetry.Config{PropagationType: "b3"}
+
+	w3ctests := map[*ingress.Location]string{
+		{BackendProtocol: httpProtocol}:                                     "opentelemetry_propagate;",
+		{BackendProtocol: httpsProtocol}:                                    "opentelemetry_propagate;",
+		{BackendProtocol: autoHTTPProtocol}:                                 "opentelemetry_propagate;",
+		{BackendProtocol: grpcProtocol}:                                     "opentelemetry_propagate;",
+		{BackendProtocol: grpcsProtocol}:                                    "opentelemetry_propagate;",
+		{BackendProtocol: fcgiProtocol}:                                     "opentelemetry_propagate;",
+		{BackendProtocol: httpProtocol, Opentelemetry: opentelemetryB3}:     "opentelemetry_propagate b3;",
+		{BackendProtocol: httpsProtocol, Opentelemetry: opentelemetryB3}:    "opentelemetry_propagate b3;",
+		{BackendProtocol: autoHTTPProtocol, Opentelemetry: opentelemetryB3}: "opentelemetry_propagate b3;",
+		{BackendProtocol: grpcProtocol, Opentelemetry: opentelemetryB3}:     "opentelemetry_propagate b3;",
+		{BackendProtocol: grpcsProtocol, Opentelemetry: opentelemetryB3}:    "opentelemetry_propagate b3;",
+		{BackendProtocol: fcgiProtocol, Opentelemetry: opentelemetryB3}:     "opentelemetry_propagate b3;",
+		{BackendProtocol: fcgiProtocol, Opentelemetry: opentelemetryB3}:     "opentelemetry_propagate b3;",
+		nil: "",
 	}
 
-	for loc, expectedDirective := range tests {
-		actualDirective := opentelemetryPropagateContext(loc)
+	b3tests := map[*ingress.Location]string{
+		{BackendProtocol: httpProtocol}:                                      "opentelemetry_propagate b3;",
+		{BackendProtocol: httpsProtocol}:                                     "opentelemetry_propagate b3;",
+		{BackendProtocol: autoHTTPProtocol}:                                  "opentelemetry_propagate b3;",
+		{BackendProtocol: grpcProtocol}:                                      "opentelemetry_propagate b3;",
+		{BackendProtocol: grpcsProtocol}:                                     "opentelemetry_propagate b3;",
+		{BackendProtocol: fcgiProtocol}:                                      "opentelemetry_propagate b3;",
+		{BackendProtocol: httpProtocol, Opentelemetry: opentelemetryW3C}:     "opentelemetry_propagate;",
+		{BackendProtocol: httpsProtocol, Opentelemetry: opentelemetryW3C}:    "opentelemetry_propagate;",
+		{BackendProtocol: autoHTTPProtocol, Opentelemetry: opentelemetryW3C}: "opentelemetry_propagate;",
+		{BackendProtocol: grpcProtocol, Opentelemetry: opentelemetryW3C}:     "opentelemetry_propagate;",
+		{BackendProtocol: grpcsProtocol, Opentelemetry: opentelemetryW3C}:    "opentelemetry_propagate;",
+		{BackendProtocol: fcgiProtocol, Opentelemetry: opentelemetryW3C}:     "opentelemetry_propagate;",
+		{BackendProtocol: fcgiProtocol, Opentelemetry: opentelemetryW3C}:     "opentelemetry_propagate;",
+		nil: "",
+	}
+
+	for loc, expectedDirective := range w3ctests {
+		actualDirective := opentelemetryPropagateContext("w3c", loc)
+		if actualDirective != expectedDirective {
+			t.Errorf("Expected %v but returned %v", expectedDirective, actualDirective)
+		}
+	}
+
+	for loc, expectedDirective := range b3tests {
+		actualDirective := opentelemetryPropagateContext("b3", loc)
 		if actualDirective != expectedDirective {
 			t.Errorf("Expected %v but returned %v", expectedDirective, actualDirective)
 		}
@@ -1735,12 +1769,20 @@ func TestShouldLoadModSecurityModule(t *testing.T) {
 func TestOpentelemetryForLocation(t *testing.T) {
 	trueVal := true
 	falseVal := false
+	w3c := "w3c"
+	b3 := "b3"
 
 	loadOT := `opentelemetry on;
 opentelemetry_propagate;
 opentelemetry_trust_incoming_spans on;`
 	loadOTUntrustedSpan := `opentelemetry on;
 opentelemetry_propagate;
+opentelemetry_trust_incoming_spans off;`
+	loadOTPropagateB3 := `opentelemetry on;
+opentelemetry_propagate b3;
+opentelemetry_trust_incoming_spans on;`
+	loadOTPropagateB3UntrustedSpan := `opentelemetry on;
+opentelemetry_propagate b3;
 opentelemetry_trust_incoming_spans off;`
 	testCases := []struct {
 		description     string
@@ -1750,15 +1792,28 @@ opentelemetry_trust_incoming_spans off;`
 		globalTrust     bool
 		isTrustSetInLoc bool
 		isTrustInLoc    *bool
+		globalPropagate *string
+		propagateInLoc  *string
 		expected        string
 	}{
-		{"globally enabled, without annotation", true, false, nil, true, false, nil, loadOT},
-		{"globally enabled and enabled in location", true, true, &trueVal, true, false, nil, loadOT},
-		{"globally disabled and not enabled in location", false, false, nil, true, false, nil, ""},
-		{"globally disabled but enabled in location", false, true, &trueVal, true, false, nil, loadOT},
-		{"globally trusted, not trusted in location", true, false, nil, true, true, &falseVal, loadOTUntrustedSpan},
-		{"not globally trusted, trust set in location", true, false, nil, false, true, &trueVal, loadOT},
-		{"not globally trusted, trust not set in location", true, false, nil, false, false, nil, loadOTUntrustedSpan},
+		{"globally enabled, without annotation, global propagate w3c", true, false, nil, true, false, nil, &w3c, nil, loadOT},
+		{"globally enabled, without annotation, global propagate b3", true, false, nil, true, false, nil, &b3, nil, loadOTPropagateB3},
+		{"globally enabled and enabled in location, global propagate w3c", true, true, &trueVal, true, false, nil, &w3c, nil, loadOT},
+		{"globally enabled and enabled in location, global propagate b3", true, true, &trueVal, true, false, nil, &b3, nil, loadOTPropagateB3},
+		{"globally disabled and not enabled in location, global propagate w3c", false, false, nil, true, false, nil, &w3c, nil, ""},
+		{"globally disabled and not enabled in location, global propagate b3", false, false, nil, true, false, nil, &b3, nil, ""},
+		{"globally disabled but enabled in location, global propagate w3c", false, true, &trueVal, true, false, nil, &w3c, nil, loadOT},
+		{"globally disabled but enabled in location, global propagate b3", false, true, &trueVal, true, false, nil, &b3, nil, loadOTPropagateB3},
+		{"globally trusted, not trusted in location, global propagate w3c", true, false, nil, true, true, &falseVal, &w3c, nil, loadOTUntrustedSpan},
+		{"globally trusted, not trusted in location, global propagate b3", true, false, nil, true, true, &falseVal, &b3, nil, loadOTPropagateB3UntrustedSpan},
+		{"not globally trusted, trust set in location, global propagate w3c", true, false, nil, false, true, &trueVal, &w3c, nil, loadOT},
+		{"not globally trusted, trust set in location, global propagate b3", true, false, nil, false, true, &trueVal, &b3, nil, loadOTPropagateB3},
+		{"not globally trusted, trust not set in location, global propagate w3c", true, false, nil, false, false, nil, &w3c, nil, loadOTUntrustedSpan},
+		{"not globally trusted, trust not set in location, global propagate b3", true, false, nil, false, false, nil, &b3, nil, loadOTPropagateB3UntrustedSpan},
+		{"globally w3c, w3c in location", true, false, nil, true, false, nil, &w3c, &w3c, loadOT},
+		{"globally w3c, b3 in location", true, false, nil, true, false, nil, &w3c, &b3, loadOTPropagateB3},
+		{"globally b3, w3c in location", true, false, nil, true, false, nil, &b3, &w3c, loadOT},
+		{"globally b3, b3 in location", true, false, nil, true, false, nil, &b3, &b3, loadOTPropagateB3},
 	}
 
 	for _, testCase := range testCases {
@@ -1771,8 +1826,11 @@ opentelemetry_trust_incoming_spans off;`
 		if il.Opentelemetry.TrustSet {
 			il.Opentelemetry.TrustEnabled = *testCase.isTrustInLoc
 		}
+		if testCase.propagateInLoc != nil {
+			il.Opentelemetry.PropagationType = *testCase.propagateInLoc
+		}
 
-		actual := buildOpentelemetryForLocation(testCase.globalOT, testCase.globalTrust, il)
+		actual := buildOpentelemetryForLocation(testCase.globalOT, testCase.globalTrust, *testCase.globalPropagate, il)
 
 		if testCase.expected != actual {
 			t.Errorf("%v: expected '%v' but returned '%v'", testCase.description, testCase.expected, actual)

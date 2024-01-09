@@ -1078,7 +1078,11 @@ stream {
 
             {{ if (or $all.Cfg.EnableOpentelemetry $location.Opentelemetry.Enabled) }}
             opentelemetry on;
+            {{ if (or (eq $location.Opentelemetry.PropagationType "b3") (and (not $location.Opentelemetry.PropagationType) (eq $all.Cfg.OpentelemetryPropagationType "b3"))) }}
+            opentelemetry_propagate b3;
+            {{ else }}
             opentelemetry_propagate;
+            {{ end }}
             {{ end }}
 
             {{ if not $all.Cfg.EnableAuthAccessLog }}
@@ -1223,7 +1227,7 @@ stream {
             set $location_path  {{ $ing.Path | escapeLiteralDollar | quote }};
             set $global_rate_limit_exceeding n;
 
-            {{ buildOpentelemetryForLocation $all.Cfg.EnableOpentelemetry $all.Cfg.OpentelemetryTrustIncomingSpan $location }}
+            {{ buildOpentelemetryForLocation $all.Cfg.EnableOpentelemetry $all.Cfg.OpentelemetryTrustIncomingSpan $all.Cfg.OpentelemetryPropagationType $location }}
 
             {{ if $location.Mirror.Source }}
             mirror {{ $location.Mirror.Source }};

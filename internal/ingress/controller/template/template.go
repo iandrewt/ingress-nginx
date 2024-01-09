@@ -1319,11 +1319,17 @@ func buildCustomErrorLocationsPerServer(input interface{}) []errorLocation {
 	return errorLocations
 }
 
-func opentelemetryPropagateContext(location *ingress.Location) string {
+func opentelemetryPropagateContext(propagationType string, location *ingress.Location) string {
 	if location == nil {
 		return ""
 	}
-	return "opentelemetry_propagate;"
+	if (location.Opentelemetry.PropagationType == "w3c") ||
+		(location.Opentelemetry.PropagationType == "" && propagationType == "w3c") {
+		return "opentelemetry_propagate;"
+	} else if location.Opentelemetry.PropagationType != "" {
+		return "opentelemetry_propagate " + location.Opentelemetry.PropagationType + ";"
+	}
+	return "opentelemetry_propagate " + propagationType + ";"
 }
 
 // shouldLoadModSecurityModule determines whether or not the ModSecurity module needs to be loaded.
@@ -1514,7 +1520,7 @@ func httpsListener(addresses []string, co string, tc *config.TemplateConfig) []s
 	return out
 }
 
-func buildOpentelemetryForLocation(isOTEnabled, isOTTrustSet bool, location *ingress.Location) string {
+func buildOpentelemetryForLocation(isOTEnabled, isOTTrustSet bool, otPropagationType string, location *ingress.Location) string {
 	isOTEnabledInLoc := location.Opentelemetry.Enabled
 	isOTSetInLoc := location.Opentelemetry.Set
 
@@ -1526,7 +1532,7 @@ func buildOpentelemetryForLocation(isOTEnabled, isOTTrustSet bool, location *ing
 		return ""
 	}
 
-	opc := opentelemetryPropagateContext(location)
+	opc := opentelemetryPropagateContext(otPropagationType, location)
 	if opc != "" {
 		opc = fmt.Sprintf("opentelemetry on;\n%v", opc)
 	}

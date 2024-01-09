@@ -20,6 +20,7 @@ import (
 	"regexp"
 
 	networking "k8s.io/api/networking/v1"
+	"k8s.io/klog/v2"
 
 	"k8s.io/ingress-nginx/internal/ingress/annotations/parser"
 	"k8s.io/ingress-nginx/internal/ingress/errors"
@@ -30,6 +31,7 @@ const (
 	enableOpenTelemetryAnnotation = "enable-opentelemetry"
 	otelTrustSpanAnnotation       = "opentelemetry-trust-incoming-span"
 	otelOperationNameAnnotation   = "opentelemetry-operation-name"
+	otelPropagationTypeAnnotation = "opentelemetry-propagation-type"
 )
 
 var regexOperationName = regexp.MustCompile(`^[A-Za-z0-9_\-]*$`)
@@ -56,6 +58,12 @@ var otelAnnotations = parser.Annotation{
 			Risk:          parser.AnnotationRiskMedium,
 			Documentation: `This annotation defines what operation name should be added to the span`,
 		},
+		otelPropagationTypeAnnotation: {
+			Validator:     parser.ValidateOptions([]string{"w3c", "b3"}, false, true),
+			Scope:         parser.AnnotationScopeLocation,
+			Risk:          parser.AnnotationRiskLow,
+			Documentation: `This annotation defines what propagation type should be used for the span`,
+		},
 	},
 }
 
@@ -66,11 +74,12 @@ type opentelemetry struct {
 
 // Config contains the configuration to be used in the Ingress
 type Config struct {
-	Enabled       bool   `json:"enabled"`
-	Set           bool   `json:"set"`
-	TrustEnabled  bool   `json:"trust-enabled"`
-	TrustSet      bool   `json:"trust-set"`
-	OperationName string `json:"operation-name"`
+	Enabled         bool   `json:"enabled"`
+	Set             bool   `json:"set"`
+	TrustEnabled    bool   `json:"trust-enabled"`
+	TrustSet        bool   `json:"trust-set"`
+	OperationName   string `json:"operation-name"`
+	PropagationType string `json:"propagation-type"`
 }
 
 // Equal tests for equality between two Config types
@@ -95,6 +104,10 @@ func (bd1 *Config) Equal(bd2 *Config) bool {
 		return false
 	}
 
+	if bd1.PropagationType != bd2.PropagationType {
+		return false
+	}
+
 	return true
 }
 
@@ -108,41 +121,46 @@ func NewParser(r resolver.Resolver) parser.IngressAnnotation {
 
 // Parse parses the annotations to look for opentelemetry configurations
 func (c opentelemetry) Parse(ing *networking.Ingress) (interface{}, error) {
-	cfg := Config{}
-	enabled, err := parser.GetBoolAnnotation(enableOpenTelemetryAnnotation, ing, c.annotationConfig.Annotations)
+	var err error
+	config := &Config{}
+
+	config.Set = true
+	config.Enabled, err = parser.GetBoolAnnotation(enableOpenTelemetryAnnotation, ing, c.annotationConfig.Annotations)
 	if err != nil {
-		return &cfg, nil
-	}
-	cfg.Set = true
-	cfg.Enabled = enabled
-	if !enabled {
-		return &cfg, nil
+		if errors.IsInvalidContent(err) {
+			klog.Warningf("annotation %s contains invalid directive, defaulting to false", enableOpenTelemetryAnnotation)
+		}
+		config.Enabled = false
+		config.Set = false
 	}
 
-	trustEnabled, err := parser.GetBoolAnnotation(otelTrustSpanAnnotation, ing, c.annotationConfig.Annotations)
+	config.TrustSet = true
+	config.TrustEnabled, err = parser.GetBoolAnnotation(otelTrustSpanAnnotation, ing, c.annotationConfig.Annotations)
 	if err != nil {
-		operationName, err := parser.GetStringAnnotation(otelOperationNameAnnotation, ing, c.annotationConfig.Annotations)
-		if err != nil {
-			if errors.IsValidationError(err) {
-				return nil, err
-			}
-			return &cfg, nil
+		if errors.IsInvalidContent(err) {
+			klog.Warningf("annotation %s contains invalid directive, defaulting to false", otelTrustSpanAnnotation)
 		}
-		cfg.OperationName = operationName
-		return &cfg, nil
+		config.TrustSet = false
+		config.TrustEnabled = false
 	}
 
-	cfg.TrustSet = true
-	cfg.TrustEnabled = trustEnabled
-	operationName, err := parser.GetStringAnnotation(otelOperationNameAnnotation, ing, c.annotationConfig.Annotations)
+	config.OperationName, err = parser.GetStringAnnotation(otelOperationNameAnnotation, ing, c.annotationConfig.Annotations)
 	if err != nil {
-		if errors.IsValidationError(err) {
-			return nil, err
+		if errors.IsInvalidContent(err) {
+			klog.Warningf("annotation %s contains invalid directive, defaulting", otelOperationNameAnnotation)
 		}
-		return &cfg, nil
+		config.OperationName = ""
 	}
-	cfg.OperationName = operationName
-	return &cfg, nil
+
+	config.PropagationType, err = parser.GetStringAnnotation(otelPropagationTypeAnnotation, ing, c.annotationConfig.Annotations)
+	if err != nil {
+		if errors.IsInvalidContent(err) {
+			klog.Warningf("annotation %s contains invalid directive, defaulting", otelPropagationTypeAnnotation)
+		}
+		config.PropagationType = ""
+	}
+
+	return config, nil
 }
 
 func (c opentelemetry) GetDocumentation() parser.AnnotationFields {

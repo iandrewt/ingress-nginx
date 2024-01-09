@@ -131,9 +131,11 @@ func TestIngressAnnotationOpentelemetryTrustSetTrue(t *testing.T) {
 
 	data := map[string]string{}
 	opName := "foo-op"
+	propagationType := "b3"
 	data[parser.GetAnnotationWithPrefix(enableOpenTelemetryAnnotation)] = enableAnnotation
 	data[parser.GetAnnotationWithPrefix(otelTrustSpanAnnotation)] = enableAnnotation
 	data[parser.GetAnnotationWithPrefix(otelOperationNameAnnotation)] = opName
+	data[parser.GetAnnotationWithPrefix(otelPropagationTypeAnnotation)] = propagationType
 	ing.SetAnnotations(data)
 
 	val, err := NewParser(&resolver.Mock{}).Parse(ing)
@@ -164,6 +166,10 @@ func TestIngressAnnotationOpentelemetryTrustSetTrue(t *testing.T) {
 	if openTelemetry.OperationName != opName {
 		t.Errorf("expected annotation value to be %v, got %v", opName, openTelemetry.OperationName)
 	}
+
+	if openTelemetry.PropagationType != propagationType {
+		t.Errorf("expected annotation value to be %v, got %v", propagationType, openTelemetry.PropagationType)
+	}
 }
 
 func TestIngressAnnotationOpentelemetryWithBadOpName(t *testing.T) {
@@ -175,9 +181,40 @@ func TestIngressAnnotationOpentelemetryWithBadOpName(t *testing.T) {
 	data[parser.GetAnnotationWithPrefix(otelOperationNameAnnotation)] = opName
 	ing.SetAnnotations(data)
 
-	_, err := NewParser(&resolver.Mock{}).Parse(ing)
-	if err == nil {
-		t.Fatalf("This operation should return an error but no error was returned")
+	val, err := NewParser(&resolver.Mock{}).Parse(ing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	openTelemetry, ok := val.(*Config)
+	if !ok {
+		t.Errorf("expectedd a Config type")
+	}
+
+	if openTelemetry.OperationName != "" {
+		t.Errorf("expected annotation value to be empty, got %v", openTelemetry.OperationName)
+	}
+}
+
+func TestIngressAnnotationOpentelemetryWithBadPropagationType(t *testing.T) {
+	ing := buildIngress()
+
+	data := map[string]string{}
+	propagationType := "bad"
+	data[parser.GetAnnotationWithPrefix(enableOpenTelemetryAnnotation)] = enableAnnotation
+	data[parser.GetAnnotationWithPrefix(otelPropagationTypeAnnotation)] = propagationType
+	ing.SetAnnotations(data)
+
+	val, err := NewParser(&resolver.Mock{}).Parse(ing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	openTelemetry, ok := val.(*Config)
+	if !ok {
+		t.Errorf("expectedd a Config type")
+	}
+
+	if openTelemetry.PropagationType != "" {
+		t.Errorf("expected annotation value to be empty, got %v", openTelemetry.PropagationType)
 	}
 }
 

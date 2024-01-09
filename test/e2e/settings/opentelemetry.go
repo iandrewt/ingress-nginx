@@ -27,6 +27,7 @@ import (
 const (
 	enableOpentelemetry            = "enable-opentelemetry"
 	opentelemetryTrustIncomingSpan = "opentelemetry-trust-incoming-span"
+	opentelemetryPropagationType   = "opentelemetry-propagation-type"
 
 	opentelemetryOperationName         = "opentelemetry-operation-name"
 	opentelemetryLocationOperationName = "opentelemetry-location-operation-name"
@@ -85,6 +86,36 @@ var _ = framework.IngressNginxDescribe("Configure Opentelemetry", func() {
 		f.WaitForNginxConfiguration(
 			func(cfg string) bool {
 				return strings.Contains(cfg, "opentelemetry_trust_incoming_spans on")
+			})
+	})
+
+	ginkgo.It("should exists with default opentelemetry_propagate directive when is empty", func() {
+		config := map[string]string{}
+		config[enableOpentelemetry] = enable
+		config[opentelemetryConfig] = opentelemetryConfigPath
+		config[opentelemetryPropagationType] = ""
+		f.SetNginxConfigMapData(config)
+
+		f.EnsureIngress(framework.NewSingleIngress(enableOpentelemetry, "/", enableOpentelemetry, f.Namespace, "http-svc", 80, nil))
+
+		f.WaitForNginxConfiguration(
+			func(cfg string) bool {
+				return strings.Contains(cfg, "opentelemetry_propagate;")
+			})
+	})
+
+	ginkgo.It("should exists opentelemetry_propagate directive when is configured", func() {
+		config := map[string]string{}
+		config[enableOpentelemetry] = enable
+		config[opentelemetryConfig] = opentelemetryConfigPath
+		config[opentelemetryPropagationType] = "b3"
+		f.SetNginxConfigMapData(config)
+
+		f.EnsureIngress(framework.NewSingleIngress(enableOpentelemetry, "/", enableOpentelemetry, f.Namespace, "http-svc", 80, nil))
+
+		f.WaitForNginxConfiguration(
+			func(cfg string) bool {
+				return strings.Contains(cfg, "opentelemetry_propagate b3;")
 			})
 	})
 
