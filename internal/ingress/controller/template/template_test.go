@@ -1134,8 +1134,8 @@ func TestEscapeLiteralDollar(t *testing.T) {
 }
 
 func TestOpentelemetryPropagateContext(t *testing.T) {
-	opentelemetryW3C := opentelemetry.Config{PropagationType: "w3c"}
-	opentelemetryB3 := opentelemetry.Config{PropagationType: "b3"}
+	opentelemetryW3C := opentelemetry.Config{PropagationType: "w3c", PropagationTypeSet: true}
+	opentelemetryB3 := opentelemetry.Config{PropagationType: "b3", PropagationTypeSet: true}
 
 	w3ctests := map[*ingress.Location]string{
 		{BackendProtocol: httpProtocol}:                                     "opentelemetry_propagate;",
@@ -1785,40 +1785,41 @@ opentelemetry_trust_incoming_spans on;`
 opentelemetry_propagate b3;
 opentelemetry_trust_incoming_spans off;`
 	testCases := []struct {
-		description     string
-		globalOT        bool
-		isSetInLoc      bool
-		isOTInLoc       *bool
-		globalTrust     bool
-		isTrustSetInLoc bool
-		isTrustInLoc    *bool
-		globalPropagate *string
-		propagateInLoc  *string
-		expected        string
+		description         string
+		globalOT            bool
+		isSetInLoc          bool
+		isOTInLoc           *bool
+		globalTrust         bool
+		isTrustSetInLoc     bool
+		isTrustInLoc        *bool
+		globalPropagate     *string
+		isPropagateSetInLoc bool
+		propagateInLoc      *string
+		expected            string
 	}{
-		{"globally enabled, without annotation, global propagate w3c", true, false, nil, true, false, nil, &w3c, nil, loadOT},
-		{"globally enabled, without annotation, global propagate b3", true, false, nil, true, false, nil, &b3, nil, loadOTPropagateB3},
-		{"globally enabled and enabled in location, global propagate w3c", true, true, &trueVal, true, false, nil, &w3c, nil, loadOT},
-		{"globally enabled and enabled in location, global propagate b3", true, true, &trueVal, true, false, nil, &b3, nil, loadOTPropagateB3},
-		{"globally disabled and not enabled in location, global propagate w3c", false, false, nil, true, false, nil, &w3c, nil, ""},
-		{"globally disabled and not enabled in location, global propagate b3", false, false, nil, true, false, nil, &b3, nil, ""},
-		{"globally disabled but enabled in location, global propagate w3c", false, true, &trueVal, true, false, nil, &w3c, nil, loadOT},
-		{"globally disabled but enabled in location, global propagate b3", false, true, &trueVal, true, false, nil, &b3, nil, loadOTPropagateB3},
-		{"globally trusted, not trusted in location, global propagate w3c", true, false, nil, true, true, &falseVal, &w3c, nil, loadOTUntrustedSpan},
-		{"globally trusted, not trusted in location, global propagate b3", true, false, nil, true, true, &falseVal, &b3, nil, loadOTPropagateB3UntrustedSpan},
-		{"not globally trusted, trust set in location, global propagate w3c", true, false, nil, false, true, &trueVal, &w3c, nil, loadOT},
-		{"not globally trusted, trust set in location, global propagate b3", true, false, nil, false, true, &trueVal, &b3, nil, loadOTPropagateB3},
-		{"not globally trusted, trust not set in location, global propagate w3c", true, false, nil, false, false, nil, &w3c, nil, loadOTUntrustedSpan},
-		{"not globally trusted, trust not set in location, global propagate b3", true, false, nil, false, false, nil, &b3, nil, loadOTPropagateB3UntrustedSpan},
-		{"globally w3c, w3c in location", true, false, nil, true, false, nil, &w3c, &w3c, loadOT},
-		{"globally w3c, b3 in location", true, false, nil, true, false, nil, &w3c, &b3, loadOTPropagateB3},
-		{"globally b3, w3c in location", true, false, nil, true, false, nil, &b3, &w3c, loadOT},
-		{"globally b3, b3 in location", true, false, nil, true, false, nil, &b3, &b3, loadOTPropagateB3},
+		{"globally enabled, without annotation, global propagate w3c", true, false, nil, true, false, nil, &w3c, false, nil, loadOT},
+		{"globally enabled, without annotation, global propagate b3", true, false, nil, true, false, nil, &b3, false, nil, loadOTPropagateB3},
+		{"globally enabled and enabled in location, global propagate w3c", true, true, &trueVal, true, false, nil, &w3c, false, nil, loadOT},
+		{"globally enabled and enabled in location, global propagate b3", true, true, &trueVal, true, false, nil, &b3, false, nil, loadOTPropagateB3},
+		{"globally disabled and not enabled in location, global propagate w3c", false, false, nil, true, false, nil, &w3c, false, nil, ""},
+		{"globally disabled and not enabled in location, global propagate b3", false, false, nil, true, false, nil, &b3, false, nil, ""},
+		{"globally disabled but enabled in location, global propagate w3c", false, true, &trueVal, true, false, nil, &w3c, false, nil, loadOT},
+		{"globally disabled but enabled in location, global propagate b3", false, true, &trueVal, true, false, nil, &b3, false, nil, loadOTPropagateB3},
+		{"globally trusted, not trusted in location, global propagate w3c", true, false, nil, true, true, &falseVal, &w3c, false, nil, loadOTUntrustedSpan},
+		{"globally trusted, not trusted in location, global propagate b3", true, false, nil, true, true, &falseVal, &b3, false, nil, loadOTPropagateB3UntrustedSpan},
+		{"not globally trusted, trust set in location, global propagate w3c", true, false, nil, false, true, &trueVal, &w3c, false, nil, loadOT},
+		{"not globally trusted, trust set in location, global propagate b3", true, false, nil, false, true, &trueVal, &b3, false, nil, loadOTPropagateB3},
+		{"not globally trusted, trust not set in location, global propagate w3c", true, false, nil, false, false, nil, &w3c, false, nil, loadOTUntrustedSpan},
+		{"not globally trusted, trust not set in location, global propagate b3", true, false, nil, false, false, nil, &b3, false, nil, loadOTPropagateB3UntrustedSpan},
+		{"globally w3c, w3c in location", true, false, nil, true, false, nil, &w3c, true, &w3c, loadOT},
+		{"globally w3c, b3 in location", true, false, nil, true, false, nil, &w3c, true, &b3, loadOTPropagateB3},
+		{"globally b3, w3c in location", true, false, nil, true, false, nil, &b3, true, &w3c, loadOT},
+		{"globally b3, b3 in location", true, false, nil, true, false, nil, &b3, true, &b3, loadOTPropagateB3},
 	}
 
 	for _, testCase := range testCases {
 		il := &ingress.Location{
-			Opentelemetry: opentelemetry.Config{Set: testCase.isSetInLoc, TrustSet: testCase.isTrustSetInLoc},
+			Opentelemetry: opentelemetry.Config{Set: testCase.isSetInLoc, TrustSet: testCase.isTrustSetInLoc, PropagationTypeSet: testCase.isPropagateSetInLoc},
 		}
 		if il.Opentelemetry.Set {
 			il.Opentelemetry.Enabled = *testCase.isOTInLoc
@@ -1826,7 +1827,7 @@ opentelemetry_trust_incoming_spans off;`
 		if il.Opentelemetry.TrustSet {
 			il.Opentelemetry.TrustEnabled = *testCase.isTrustInLoc
 		}
-		if testCase.propagateInLoc != nil {
+		if il.Opentelemetry.PropagationTypeSet {
 			il.Opentelemetry.PropagationType = *testCase.propagateInLoc
 		}
 

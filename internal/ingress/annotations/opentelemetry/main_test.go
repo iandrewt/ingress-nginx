@@ -98,6 +98,10 @@ func TestIngressAnnotationOpentelemetrySetTrue(t *testing.T) {
 	if openTelemetry.TrustSet {
 		t.Errorf("expected annotation value to be false, got true")
 	}
+
+	if openTelemetry.PropagationTypeSet {
+		t.Errorf("expected annotation value to be false, got true")
+	}
 }
 
 func TestIngressAnnotationOpentelemetrySetFalse(t *testing.T) {
@@ -170,6 +174,10 @@ func TestIngressAnnotationOpentelemetryTrustSetTrue(t *testing.T) {
 	if openTelemetry.PropagationType != propagationType {
 		t.Errorf("expected annotation value to be %v, got %v", propagationType, openTelemetry.PropagationType)
 	}
+
+	if !openTelemetry.PropagationTypeSet {
+		t.Errorf("expected annotation value to be true, got false")
+	}
 }
 
 func TestIngressAnnotationOpentelemetryWithBadOpName(t *testing.T) {
@@ -215,6 +223,10 @@ func TestIngressAnnotationOpentelemetryWithBadPropagationType(t *testing.T) {
 
 	if openTelemetry.PropagationType != "" {
 		t.Errorf("expected annotation value to be empty, got %v", openTelemetry.PropagationType)
+	}
+
+	if openTelemetry.PropagationTypeSet {
+		t.Errorf("expected annotation value to be false, got true")
 	}
 }
 

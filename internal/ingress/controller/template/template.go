@@ -1323,11 +1323,14 @@ func opentelemetryPropagateContext(propagationType string, location *ingress.Loc
 	if location == nil {
 		return ""
 	}
-	if (location.Opentelemetry.PropagationType == "w3c") ||
-		(location.Opentelemetry.PropagationType == "" && propagationType == "w3c") {
-		return "opentelemetry_propagate;"
-	} else if location.Opentelemetry.PropagationType != "" {
+	if location.Opentelemetry.PropagationTypeSet {
+		if location.Opentelemetry.PropagationType == "w3c" {
+			return "opentelemetry_propagate;"
+		}
 		return "opentelemetry_propagate " + location.Opentelemetry.PropagationType + ";"
+	}
+	if propagationType == "" || propagationType == "w3c" {
+		return "opentelemetry_propagate;"
 	}
 	return "opentelemetry_propagate " + propagationType + ";"
 }

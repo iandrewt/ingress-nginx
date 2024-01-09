@@ -74,12 +74,13 @@ type opentelemetry struct {
 
 // Config contains the configuration to be used in the Ingress
 type Config struct {
-	Enabled         bool   `json:"enabled"`
-	Set             bool   `json:"set"`
-	TrustEnabled    bool   `json:"trust-enabled"`
-	TrustSet        bool   `json:"trust-set"`
-	OperationName   string `json:"operation-name"`
-	PropagationType string `json:"propagation-type"`
+	Enabled            bool   `json:"enabled"`
+	Set                bool   `json:"set"`
+	TrustEnabled       bool   `json:"trust-enabled"`
+	TrustSet           bool   `json:"trust-set"`
+	OperationName      string `json:"operation-name"`
+	PropagationType    string `json:"propagation-type"`
+	PropagationTypeSet bool   `json:"propagation-type-set"`
 }
 
 // Equal tests for equality between two Config types
@@ -101,6 +102,10 @@ func (bd1 *Config) Equal(bd2 *Config) bool {
 	}
 
 	if bd1.OperationName != bd2.OperationName {
+		return false
+	}
+
+	if bd1.PropagationTypeSet != bd2.PropagationTypeSet {
 		return false
 	}
 
@@ -152,11 +157,13 @@ func (c opentelemetry) Parse(ing *networking.Ingress) (interface{}, error) {
 		config.OperationName = ""
 	}
 
+	config.PropagationTypeSet = true
 	config.PropagationType, err = parser.GetStringAnnotation(otelPropagationTypeAnnotation, ing, c.annotationConfig.Annotations)
 	if err != nil {
 		if errors.IsInvalidContent(err) {
 			klog.Warningf("annotation %s contains invalid directive, defaulting", otelPropagationTypeAnnotation)
 		}
+		config.PropagationTypeSet = false
 		config.PropagationType = ""
 	}
 
