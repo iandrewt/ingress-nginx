@@ -54,6 +54,9 @@ opentelemetry-operation-name
 # sets whether or not to trust incoming telemetry spans
 opentelemetry-trust-incoming-span
 
+# sets the propagation type for outgoing spans
+opentelemetry-propagation-type
+
 # specifies the port to use when uploading traces, Default: 4317
 otlp-collector-port
 
@@ -83,13 +86,15 @@ otel-sampler
 otel-sampler-parent-based
 ```
 
-Note that you can also set whether to trust incoming spans (global default is true) per-location using annotations like the following:
+Note that you can also set whether to trust incoming spans (global default is true) and the propagation type per-location using annotations like the following:
 ```yaml
 kind: Ingress
 metadata:
   annotations:
     nginx.ingress.kubernetes.io/opentelemetry-trust-incoming-span: "true"
+    nginx.ingress.kubernetes.io/opentelemetry-propagation-type: "w3c"
 ```
+
 
 ## Examples
 
@@ -168,6 +173,7 @@ To install the example and collectors run:
         opentelemetry-config: "/etc/ingress-controller/telemetry/opentelemetry.toml"
         opentelemetry-operation-name: "HTTP $request_method $service_name $uri"
         opentelemetry-trust-incoming-span: "true"
+        opentelemetry-propagation-type: "w3c"
         otlp-collector-host: "otel-coll-collector.otel.svc"
         otlp-collector-port: "4317"
         otel-max-queuesize: "2048"
@@ -297,7 +303,7 @@ for common annotations and configurations:
 | `jaeger-collector-port`               | `otlp-collector-port`                        |
 | `jaeger-endpoint`                     | `otlp-collector-port`, `otlp-collector-host` |
 | `jaeger-service-name`                 | `otel-service-name`                          |
-| `jaeger-propagation-format`           | `N/A`                                        |
+| `jaeger-propagation-format`           | `opentelemetry-propagation-type`             |
 | `jaeger-sampler-type`                 | `otel-sampler`                               |
 | `jaeger-sampler-param`                | `otel-sampler`                               |
 | `jaeger-sampler-host`                 | `N/A`                                        |

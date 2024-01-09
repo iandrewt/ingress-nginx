@@ -164,6 +164,7 @@ The following table shows a configuration option's name, type, and the default v
 |[enable-opentelemetry](#enable-opentelemetry)|bool|"false"||
 |[opentelemetry-trust-incoming-span](#opentelemetry-trust-incoming-span)|bool|"true"||
 |[opentelemetry-operation-name](#opentelemetry-operation-name)|string|""||
+|[opentelemetry-propagation-type](#opentelemetry-propagation-type)|string|"w3c"||
 |[opentelemetry-config](#/etc/ingress-controller/telemetry/opentelemetry.toml)|string|"/etc/ingress-controller/telemetry/opentelemetry.toml"||
 |[otlp-collector-host](#otlp-collector-host)|string|""||
 |[otlp-collector-port](#otlp-collector-port)|int|4317||
@@ -1091,6 +1092,9 @@ Specifies the service name to use for any traces created. _**default:**_ nginx
 
 ##  opentelemetry-trust-incoming-span: "true"
 Enables or disables using spans from incoming requests as parent for created ones. _**default:**_ true
+
+## opentelemetry-propagation-type
+Specifies the propagation type for spans. Can be either `w3c` or `b3`. _**default:**_ w3c
 
 ##  otel-sampler-parent-based
 

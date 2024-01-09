@@ -125,6 +125,7 @@ You can add these Kubernetes annotations to specific Ingress objects to customiz
 |[nginx.ingress.kubernetes.io/opentracing-trust-incoming-span](#opentracing-trust-incoming-span)|"true" or "false"|
 |[nginx.ingress.kubernetes.io/enable-opentelemetry](#enable-opentelemetry)|"true" or "false"|
 |[nginx.ingress.kubernetes.io/opentelemetry-trust-incoming-span](#opentelemetry-trust-incoming-spans)|"true" or "false"|
+|[nginx.ingress.kubernetes.io/opentelemetry-propagation-type](#opentelemetry-propagation-type)|"w3c" or "b3"|
 |[nginx.ingress.kubernetes.io/use-regex](#use-regex)|bool|
 |[nginx.ingress.kubernetes.io/enable-modsecurity](#modsecurity)|bool|
 |[nginx.ingress.kubernetes.io/enable-owasp-core-rules](#modsecurity)|bool|
@@ -857,6 +858,15 @@ sometimes need to be overridden to enable it or disable it for a specific ingres
 
 ```yaml
 nginx.ingress.kubernetes.io/opentelemetry-trust-incoming-spans: "true"
+```
+
+### Opentelemetry Propagation Type
+
+The option to set the propagation type for spans can be set globally in the ConfigMap but this will
+sometimes need to be overridden to set it for a specific ingress (e.g. use b3 on a legacy application)
+
+```yaml
+nginx.ingress.kubernetes.io/opentelemetry-propagation-type: "w3c"
 ```
 
 ### X-Forwarded-Prefix Header
